@@ -139,6 +139,8 @@
   .toast.show { opacity: 1; }
 
   .spinner { display: flex; justify-content: center; padding: 40px 0; color: var(--text-dim); font-size: 13px; }
+  .version-tag { color: var(--text-dim); font-size: 11px; opacity: 0.6; margin-top: 6px; }
+  .version-tag-inline { font-size: 11px; font-weight: 400; color: var(--text-dim); opacity: 0.6; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -146,7 +148,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbw3HibfqCC-3CKKvKjVawXFhvntazKibD4eZKqQdSt4XLO-_N-aWZbwrvB9mEQwyMZExw/exec'; // e.g. https://script.google.com/macros/s/XXXX/exec
+const API_URL = 'https://script.google.com/macros/s/AKfycbw3HibfqCC-3CKKvKjVawXFhvntazKibD4eZKqQdSt4XLO-_N-aWZbwrvB9mEQwyMZExw/exec';
+const APP_VERSION = 'v1.0.0';
 
 let state = {
   password: localStorage.getItem('crm_pw') || '',
@@ -213,6 +216,7 @@ function renderLogin() {
         <button type="submit" class="btn btn-block">Entrar</button>
         <div class="error-text" id="loginError"></div>
       </form>
+      <div class="version-tag">${APP_VERSION}</div>
     </div>
   `;
 }
@@ -244,7 +248,7 @@ function renderList() {
   return `
     <header>
       <div class="crest"></div>
-      <h1>Contatos</h1>
+      <h1>Contatos <span class="version-tag-inline">${APP_VERSION}</span></h1>
       <button class="icon-btn" id="logoutBtn" title="Sair">&#9211;</button>
     </header>
     <main>
