@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CRM Porsche Service Rio</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #161616;
+    --surface-2: #1f1f1f;
+    --border: #2c2c2c;
+    --text: #f2f2f2;
+    --text-dim: #9a9a9a;
+    --gold: #c9a227;
+    --red: #d5001c;
+    --green: #2e7d32;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app { max-width: 720px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .crest { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8a6d10); flex-shrink: 0; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; flex: 1; }
+  header button.icon-btn { background: none; border: none; color: var(--text-dim); font-size: 20px; padding: 4px 8px; cursor: pointer; }
+
+  main { flex: 1; padding: 14px 16px 90px; }
+
+  /* Login */
+  .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; gap: 18px; }
+  .login-screen .crest-lg { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8a6d10); }
+  .login-screen h1 { font-size: 20px; margin: 0; }
+  .login-screen p { color: var(--text-dim); margin: 0; font-size: 14px; text-align: center; }
+  input[type="password"], input[type="text"], input[type="email"], textarea, select {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 14px; border-radius: var(--radius); font-size: 15px; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--gold); }
+  .login-screen form { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; }
+  .btn {
+    background: var(--gold); color: #1a1300; border: none; padding: 12px 16px; border-radius: var(--radius);
+    font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
+  }
+  .btn:active { opacity: 0.85; }
+  .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-block { width: 100%; }
+  .error-text { color: var(--red); font-size: 13px; text-align: center; min-height: 16px; }
+
+  /* Search */
+  .search-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+  .search-bar input { flex: 1; }
+  .search-bar .add-btn {
+    background: var(--gold); color: #1a1300; border: none; width: 44px; border-radius: var(--radius);
+    font-size: 22px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Contact list */
+  .contact-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  }
+  .contact-card:active { background: var(--surface-2); }
+  .contact-avatar {
+    width: 38px; height: 38px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--gold);
+    flex-shrink: 0;
+  }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-sub { font-size: 13px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .contact-tag {
+    font-size: 11px; background: var(--surface-2); color: var(--text-dim); padding: 2px 8px; border-radius: 20px;
+    border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .empty-state { text-align: center; color: var(--text-dim); padding: 60px 20px; font-size: 14px; }
+  .result-count { color: var(--text-dim); font-size: 12px; margin-bottom: 10px; }
+
+  /* Detail view */
+  .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .detail-header .contact-avatar { width: 52px; height: 52px; font-size: 18px; }
+  .detail-header h2 { font-size: 19px; margin: 0; }
+  .detail-header .type-badge { font-size: 11px; color: var(--gold); border: 1px solid var(--gold); border-radius: 20px; padding: 1px 8px; display: inline-block; margin-top: 4px; }
+
+  .contact-actions { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .action-pill {
+    flex: 1; min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 8px;
+    text-decoration: none; color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .action-pill .ic { font-size: 20px; }
+  .action-pill.whatsapp .ic { color: #25D366; }
+  .action-pill.call .ic { color: var(--gold); }
+
+  .field-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 14px; margin-bottom: 14px; }
+  .field-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .field-row:last-child { border-bottom: none; }
+  .field-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .field-value { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+
+  .section-title { font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 10px; font-weight: 700; }
+
+  .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+  .note-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+  .note-body { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .note-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .note-actions button { background: none; border: none; color: var(--text-dim); font-size: 12px; cursor: pointer; padding: 0; }
+  .note-actions button.danger { color: var(--red); }
+
+  .bottom-actions { position: sticky; bottom: 0; background: var(--bg); padding: 14px 0 6px; display: flex; gap: 10px; margin-top: 10px; }
+
+  /* Form */
+  .form-field { margin-bottom: 12px; }
+  .form-field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+  textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+
+  .top-back { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-dim); font-size: 14px; cursor: pointer; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 18px; border-radius: 20px; font-size: 13px; z-index: 100; opacity: 0; transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+
+  .spinner { display: flex; justify-content: center; padding: 40px 0; color: var(--text-dim); font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE'; // e.g. https://script.google.com/macros/s/XXXX/exec
+
+let state = {
+  password: localStorage.getItem('crm_pw') || '',
+  contacts: [],
+  contactsLoaded: false,
+  view: 'login', // login | list | detail | contactForm | noteForm
+  currentContactId: null,
+  searchTerm: '',
+  editingNote: null,
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+async function api(action, payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, password: state.password, ...payload }),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Erro desconhecido');
+  return json.data;
+}
+
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function digitsOnly(phone) {
+  return (phone || '').replace(/[^\d]/g, '');
+}
+
+function firstPhone(c) {
+  return c.Phone_Cell || c.Phone_Work || c.Phone_Home || c.Phone_Other || '';
+}
+
+function render() {
+  const app = document.getElementById('app');
+  if (state.view === 'login') app.innerHTML = renderLogin();
+  else if (state.view === 'list') app.innerHTML = renderList();
+  else if (state.view === 'detail') app.innerHTML = renderDetail();
+  else if (state.view === 'contactForm') app.innerHTML = renderContactForm();
+  else if (state.view === 'noteForm') app.innerHTML = renderNoteForm();
+  attachHandlers();
+}
+
+// ---------- Login ----------
+
+function renderLogin() {
+  return `
+    <div class="login-screen">
+      <div class="crest-lg"></div>
+      <h1>CRM Porsche Service Rio</h1>
+      <p>Digite a senha para acessar os contatos</p>
+      <form id="loginForm">
+        <input type="password" id="pwInput" placeholder="Senha" autocomplete="current-password">
+        <button type="submit" class="btn btn-block">Entrar</button>
+        <div class="error-text" id="loginError"></div>
+      </form>
+    </div>
+  `;
+}
+
+// ---------- List ----------
+
+function filteredContacts() {
+  const term = state.searchTerm.trim().toLowerCase();
+  if (!term) return state.contacts;
+  return state.contacts.filter(c => {
+    return [c.Name, c.Org, c.Tags, c.Email, c.Phone_Work, c.Phone_Home, c.Phone_Cell, c.Phone_Other]
+      .some(f => (f || '').toLowerCase().includes(term));
+  });
+}
+
+function renderList() {
+  const list = filteredContacts();
+  const rows = list.slice(0, 200).map(c => `
+    <div class="contact-card" data-id="${c.ContactID}">
+      <div class="contact-avatar">${initials(c.Name)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${escapeHtml(c.Name || '(sem nome)')}</div>
+        <div class="contact-sub">${escapeHtml(c.Org && c.Org !== c.Name ? c.Org : (firstPhone(c) || c.Email || ''))}</div>
+      </div>
+      ${c.Tags ? `<span class="contact-tag">${escapeHtml(c.Tags.split(',')[0].trim())}</span>` : ''}
+    </div>
+  `).join('');
+
+  return `
+    <header>
+      <div class="crest"></div>
+      <h1>Contatos</h1>
+      <button class="icon-btn" id="logoutBtn" title="Sair">&#9211;</button>
+    </header>
+    <main>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Buscar por nome, empresa, telefone..." value="${escapeHtml(state.searchTerm)}">
+        <button class="add-btn" id="addContactBtn">+</button>
+      </div>
+      ${!state.contactsLoaded ? '<div class="spinner">Carregando contatos...</div>' :
+        list.length === 0 ? '<div class="empty-state">Nenhum contato encontrado.</div>' :
+        `<div class="result-count">${list.length} contato${list.length !== 1 ? 's' : ''}</div>${rows}`}
+    </main>
+  `;
+}
+
+// ---------- Detail ----------
+
+function renderDetail() {
+  const c = state.contacts.find(x => String(x.ContactID) === String(state.currentContactId));
+  if (!c) return '<main><div class="empty-state">Contato não encontrado.</div></main>';
+
+  const phone = firstPhone(c);
+  const waLink = phone ? `https://wa.me/55${digitsOnly(phone)}` : null;
+  const telLink = phone ? `tel:${digitsOnly(phone)}` : null;
+
+  const fields = [
+    ['Empresa', c.Org && c.Org !== c.Name ? c.Org : ''],
+    ['Email', c.Email],
+    ['Telefone (trabalho)', c.Phone_Work],
+    ['Telefone (casa)', c.Phone_Home],
+    ['Celular', c.Phone_Cell],
+    ['Outro telefone', c.Phone_Other],
+    ['Endereço', c.Address],
+    ['CNPJ', c.CNPJ],
+    ['Tags', c.Tags],
+    ['Observações', c.Background],
+  ].filter(([, v]) => v);
+
+  const notes = (c.notes || []);
+  const noteRows = notes.length === 0
+    ? '<div class="empty-state">Nenhuma nota ainda.</div>'
+    : notes.map(n => `
+      <div class="note-card" data-note-id="${n.NoteID}">
+        <div class="note-meta"><span>${escapeHtml(n.Author || '')}</span><span>${escapeHtml(n.Written || '')}</span></div>
+        <div class="note-body">${escapeHtml(n.Body || '')}</div>
+        <div class="note-actions">
+          <button class="edit-note-btn" data-note-id="${n.NoteID}">Editar</button>
+          <button class="danger delete-note-btn" data-note-id="${n.NoteID}">Excluir</button>
+        </div>
+      </div>
+    `).join('');
+
+  return `
+    <header>
+      <button class="icon-btn" id="backBtn">&#8592;</button>
+      <h1>Detalhes</h1>
+    </header>
+    <main>
+      <div class="detail-header">
+        <div class="contact-avatar">${initials(c.Name)}</div>
+        <div>
+          <h2>${escapeHtml(c.Name)}</h2>
+          <span class="type-badge">${c.Type === 'Company' ? 'Empresa' : 'Pessoa'}</span>
+        </div>
+      </div>
+
+      <div class="contact-actions">
+        ${waLink ? `<a class="action-pill whatsapp" href="${waLink}" target="_blank"><span class="ic">&#128172;</span>WhatsApp</a>` : ''}
+        ${telLink ? `<a class="action-pill call" href="${telLink}"><span class="ic">&#128222;</span>Ligar</a>` : ''}
+        ${c.Email ? `<a class="action-pill" href="mailto:${c.Email}"><span class="ic">&#9993;</span>Email</a>` : ''}
+      </div>
+
+      ${fields.length ? `<div class="field-group">${fields.map(([label, value]) => `
+        <div class="field-row">
+          <div class="field-label">${label}</div>
+          <div class="field-value">${escapeHtml(value)}</div>
+        </div>
+      `).join('')}</div>` : ''}
+
+      <div class="section-title">Histórico (${notes.length})</div>
+      <button class="btn btn-secondary btn-block" id="addNoteBtn" style="margin-bottom:12px;">+ Adicionar nota</button>
+      ${noteRows}
+
+      <div class="bottom-actions">
+        <button class="btn btn-secondary" id="editContactBtn" style="flex:1;">Editar contato</button>
+        <button class="btn btn-danger" id="deleteContactBtn" style="flex:1;">Excluir</button>
+      </div>
+    </main>
+  `;
+}
+
+// ---------- Contact form (create / edit) ----------
+
+function renderContactForm() {
+  const isEdit = !!state.currentContactId;
+  const c = isEdit ? state.contacts.find(x => String(x.ContactID) === String(state.currentContactId)) : {};
+
+  const field = (key, label, value, type = 'text') => `
+    <div class="form-field">
+      <label>${label}</label>
+      <input type="${type}" id="f_${key}" value="${escapeHtml(value || '')}">
+    </div>
+  `;
+
+  return `
+    <header>
+      <button class="icon-btn" id="backBtn">&#8592;</button>
+      <h1>${isEdit ? 'Editar contato' : 'Novo contato'}</h1>
+    </header>
+    <main>
+      <div class="form-field">
+        <label>Nome</label>
+        <input type="text" id="f_Name" value="${escapeHtml(c.Name || '')}">
+      </div>
+      <div class="form-field">
+        <label>Tipo</label>
+        <select id="f_Type">
+          <option value="Person" ${c.Type === 'Person' ? 'selected' : ''}>Pessoa</option>
+          <option value="Company" ${c.Type === 'Company' ? 'selected' : ''}>Empresa</option>
+        </select>
+      </div>
+      ${field('Org', 'Empresa / Organização', c.Org)}
+      ${field('Email', 'Email', c.Email, 'email')}
+      ${field('Phone_Cell', 'Celular', c.Phone_Cell)}
+      ${field('Phone_Work', 'Telefone (trabalho)', c.Phone_Work)}
+      ${field('Phone_Home', 'Telefone (casa)', c.Phone_Home)}
+      ${field('Phone_Other', 'Outro telefone', c.Phone_Other)}
+      ${field('Address', 'Endereço', c.Address)}
+      ${field('CNPJ', 'CNPJ', c.CNPJ)}
+      ${field('Tags', 'Tags (separadas por vírgula)', c.Tags)}
+      <div class="form-field">
+        <label>Observações</label>
+        <textarea id="f_Background">${escapeHtml(c.Background || '')}</textarea>
+      </div>
+
+      <div class="bottom-actions">
+        <button class="btn btn-secondary" id="cancelFormBtn" style="flex:1;">Cancelar</button>
+        <button class="btn" id="saveContactBtn" style="flex:1;">Salvar</button>
+      </div>
+    </main>
+  `;
+}
+
+// ---------- Note form ----------
+
+function renderNoteForm() {
+  const note = state.editingNote;
+  return `
+    <header>
+      <button class="icon-btn" id="backBtn">&#8592;</button>
+      <h1>${note ? 'Editar nota' : 'Nova nota'}</h1>
+    </header>
+    <main>
+      <div class="form-field">
+        <label>Autor</label>
+        <input type="text" id="n_Author" value="${escapeHtml(note?.Author || '')}">
+      </div>
+      <div class="form-field">
+        <label>Nota</label>
+        <textarea id="n_Body" style="min-height:140px;">${escapeHtml(note?.Body || '')}</textarea>
+      </div>
+      <div class="bottom-actions">
+        <button class="btn btn-secondary" id="cancelFormBtn" style="flex:1;">Cancelar</button>
+        <button class="btn" id="saveNoteBtn" style="flex:1;">Salvar</button>
+      </div>
+    </main>
+  `;
+}
+
+// ---------- Handlers ----------
+
+function attachHandlers() {
+  const $ = (id) => document.getElementById(id);
+
+  if (state.view === 'login') {
+    $('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pw = $('pwInput').value;
+      state.password = pw;
+      try {
+        await loadContacts();
+        localStorage.setItem('crm_pw', pw);
+        state.view = 'list';
+        render();
+      } catch (err) {
+        $('loginError').textContent = 'Senha incorreta ou erro de conexão.';
+      }
+    });
+  }
+
+  if (state.view === 'list') {
+    $('logoutBtn').onclick = () => {
+      localStorage.removeItem('crm_pw');
+      state.password = '';
+      state.contacts = [];
+      state.contactsLoaded = false;
+      state.view = 'login';
+      render();
+    };
+    $('searchInput').oninput = (e) => {
+      state.searchTerm = e.target.value;
+      render();
+      $('searchInput').focus();
+      $('searchInput').setSelectionRange(state.searchTerm.length, state.searchTerm.length);
+    };
+    $('addContactBtn').onclick = () => {
+      state.currentContactId = null;
+      state.view = 'contactForm';
+      render();
+    };
+    document.querySelectorAll('.contact-card').forEach(card => {
+      card.onclick = () => {
+        state.currentContactId = card.dataset.id;
+        state.view = 'detail';
+        render();
+        loadContactDetail(card.dataset.id);
+      };
+    });
+  }
+
+  if (state.view === 'detail') {
+    $('backBtn').onclick = () => { state.view = 'list'; render(); };
+    $('addNoteBtn').onclick = () => { state.editingNote = null; state.view = 'noteForm'; render(); };
+    $('editContactBtn').onclick = () => { state.view = 'contactForm'; render(); };
+    $('deleteContactBtn').onclick = async () => {
+      if (!confirm('Excluir este contato e todas as suas notas?')) return;
+      try {
+        await api('deleteContact', { contactId: state.currentContactId });
+        state.contacts = state.contacts.filter(c => String(c.ContactID) !== String(state.currentContactId));
+        state.view = 'list';
+        render();
+        showToast('Contato excluído');
+      } catch (err) { showToast('Erro: ' + err.message); }
+    };
+    document.querySelectorAll('.edit-note-btn').forEach(btn => {
+      btn.onclick = () => {
+        const c = state.contacts.find(x => String(x.ContactID) === String(state.currentContactId));
+        state.editingNote = c.notes.find(n => String(n.NoteID) === String(btn.dataset.noteId));
+        state.view = 'noteForm';
+        render();
+      };
+    });
+    document.querySelectorAll('.delete-note-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Excluir esta nota?')) return;
+        try {
+          await api('deleteNote', { noteId: btn.dataset.noteId });
+          await loadContactDetail(state.currentContactId);
+          showToast('Nota excluída');
+        } catch (err) { showToast('Erro: ' + err.message); }
+      };
+    });
+  }
+
+  if (state.view === 'contactForm') {
+    $('backBtn').onclick = $('cancelFormBtn').onclick = () => {
+      state.view = state.currentContactId ? 'detail' : 'list';
+      render();
+    };
+    $('saveContactBtn').onclick = async () => {
+      const payload = {
+        Name: $('f_Name').value.trim(),
+        Type: $('f_Type').value,
+        Org: $('f_Org').value.trim(),
+        Email: $('f_Email').value.trim(),
+        Phone_Cell: $('f_Phone_Cell').value.trim(),
+        Phone_Work: $('f_Phone_Work').value.trim(),
+        Phone_Home: $('f_Phone_Home').value.trim(),
+        Phone_Other: $('f_Phone_Other').value.trim(),
+        Address: $('f_Address').value.trim(),
+        CNPJ: $('f_CNPJ').value.trim(),
+        Tags: $('f_Tags').value.trim(),
+        Background: $('f_Background').value.trim(),
+      };
+      if (!payload.Name) { showToast('Nome é obrigatório'); return; }
+      try {
+        if (state.currentContactId) {
+          const updated = await api('updateContact', { contactId: state.currentContactId, contact: payload });
+          const idx = state.contacts.findIndex(c => String(c.ContactID) === String(state.currentContactId));
+          state.contacts[idx] = { ...state.contacts[idx], ...updated };
+          state.view = 'detail';
+        } else {
+          const created = await api('createContact', { contact: payload });
+          state.contacts.unshift(created);
+          state.currentContactId = created.ContactID;
+          state.view = 'detail';
+        }
+        render();
+        showToast('Contato salvo');
+      } catch (err) { showToast('Erro: ' + err.message); }
+    };
+  }
+
+  if (state.view === 'noteForm') {
+    $('backBtn').onclick = $('cancelFormBtn').onclick = () => { state.view = 'detail'; render(); };
+    $('saveNoteBtn').onclick = async () => {
+      const body = $('n_Body').value.trim();
+      const author = $('n_Author').value.trim();
+      if (!body) { showToast('A nota não pode estar vazia'); return; }
+      try {
+        if (state.editingNote) {
+          await api('updateNote', { noteId: state.editingNote.NoteID, note: { Author: author, Body: body } });
+        } else {
+          await api('addNote', { contactId: state.currentContactId, note: { Author: author, Body: body } });
+        }
+        await loadContactDetail(state.currentContactId);
+        state.view = 'detail';
+        render();
+        showToast('Nota salva');
+      } catch (err) { showToast('Erro: ' + err.message); }
+    };
+  }
+}
+
+// ---------- Data loading ----------
+
+async function loadContacts() {
+  const data = await api('listContacts', {});
+  state.contacts = data;
+  state.contactsLoaded = true;
+}
+
+async function loadContactDetail(contactId) {
+  try {
+    const full = await api('getContact', { contactId });
+    const idx = state.contacts.findIndex(c => String(c.ContactID) === String(contactId));
+    if (idx !== -1) state.contacts[idx] = { ...state.contacts[idx], ...full };
+    if (state.view === 'detail') render();
+  } catch (err) {
+    showToast('Erro ao carregar contato: ' + err.message);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Init ----------
+
+(async function init() {
+  if (state.password) {
+    try {
+      await loadContacts();
+      state.view = 'list';
+    } catch (err) {
+      state.password = '';
+      localStorage.removeItem('crm_pw');
+      state.view = 'login';
+    }
+  }
+  render();
+})();
+</script>
+</body>
+</html>
