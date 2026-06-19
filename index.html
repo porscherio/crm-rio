@@ -153,7 +153,7 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw3HibfqCC-3CKKvKjVawXFhvntazKibD4eZKqQdSt4XLO-_N-aWZbwrvB9mEQwyMZExw/exec';
-const APP_VERSION = 'v1.0.1';
+const APP_VERSION = 'v1.1';
 
 let state = {
   password: localStorage.getItem('crm_pw') || '',
@@ -236,12 +236,8 @@ function filteredContacts() {
   });
 }
 
-function renderList() {
-  const term = state.searchTerm.trim();
-  const list = filteredContacts();
-  const showLimit = term ? list.length : 150;
-  const shown = list.slice(0, showLimit);
-  const rows = shown.map(c => `
+function buildContactRows(shown) {
+  return shown.map(c => `
     <div class="contact-card" data-id="${c.ContactID}">
       <div class="contact-avatar">${initials(c.Name)}</div>
       <div class="contact-info">
@@ -251,7 +247,43 @@ function renderList() {
       ${c.Tags ? `<span class="contact-tag">${escapeHtml(c.Tags.split(',')[0].trim())}</span>` : ''}
     </div>
   `).join('');
+}
 
+function buildResultsHtml() {
+  const term = state.searchTerm.trim();
+  const list = filteredContacts();
+  const showLimit = term ? list.length : 150;
+  const shown = list.slice(0, showLimit);
+  const rows = buildContactRows(shown);
+
+  if (!state.contactsLoaded) return '<div class="spinner">Carregando contatos...</div>';
+  if (list.length === 0) return '<div class="empty-state">Nenhum contato encontrado.</div>';
+  return `<div class="result-count">${
+    list.length > shown.length
+      ? `Mostrando ${shown.length} de ${list.length} contatos — use a busca para encontrar mais`
+      : `${list.length} contato${list.length !== 1 ? 's' : ''}`
+  }</div>${rows}`;
+}
+
+function attachContactCardHandlers() {
+  document.querySelectorAll('.contact-card').forEach(card => {
+    card.onclick = () => {
+      state.currentContactId = card.dataset.id;
+      state.view = 'detail';
+      render();
+      loadContactDetail(card.dataset.id);
+    };
+  });
+}
+
+function renderListResultsOnly() {
+  const container = document.getElementById('resultsContainer');
+  if (!container) { render(); return; }
+  container.innerHTML = buildResultsHtml();
+  attachContactCardHandlers();
+}
+
+function renderList() {
   return `
     <div class="version-badge">${APP_VERSION}</div>
     <header>
@@ -264,13 +296,7 @@ function renderList() {
         <input type="text" id="searchInput" placeholder="Buscar por nome, empresa, telefone..." value="${escapeHtml(state.searchTerm)}">
         <button class="add-btn" id="addContactBtn">+</button>
       </div>
-      ${!state.contactsLoaded ? '<div class="spinner">Carregando contatos...</div>' :
-        list.length === 0 ? '<div class="empty-state">Nenhum contato encontrado.</div>' :
-        `<div class="result-count">${
-          list.length > shown.length
-            ? `Mostrando ${shown.length} de ${list.length} contatos — use a busca para encontrar mais`
-            : `${list.length} contato${list.length !== 1 ? 's' : ''}`
-        }</div>${rows}`}
+      <div id="resultsContainer">${buildResultsHtml()}</div>
     </main>
   `;
 }
@@ -461,23 +487,14 @@ function attachHandlers() {
     };
     $('searchInput').oninput = (e) => {
       state.searchTerm = e.target.value;
-      render();
-      $('searchInput').focus();
-      $('searchInput').setSelectionRange(state.searchTerm.length, state.searchTerm.length);
+      renderListResultsOnly();
     };
     $('addContactBtn').onclick = () => {
       state.currentContactId = null;
       state.view = 'contactForm';
       render();
     };
-    document.querySelectorAll('.contact-card').forEach(card => {
-      card.onclick = () => {
-        state.currentContactId = card.dataset.id;
-        state.view = 'detail';
-        render();
-        loadContactDetail(card.dataset.id);
-      };
-    });
+    attachContactCardHandlers();
   }
 
   if (state.view === 'detail') {
