@@ -90,6 +90,10 @@
   }
   .empty-state { text-align: center; color: var(--text-dim); padding: 60px 20px; font-size: 14px; }
   .result-count { color: var(--text-dim); font-size: 12px; margin-bottom: 10px; }
+  .review-banner {
+    background: #2a1f0a; border: 1px solid var(--gold); color: var(--gold);
+    font-size: 12px; padding: 8px 12px; border-radius: var(--radius); margin-bottom: 14px;
+  }
 
   /* Detail view */
   .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -153,7 +157,7 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw3HibfqCC-3CKKvKjVawXFhvntazKibD4eZKqQdSt4XLO-_N-aWZbwrvB9mEQwyMZExw/exec';
-const APP_VERSION = 'v1.2';
+const APP_VERSION = 'v1.3';
 
 let state = {
   password: localStorage.getItem('crm_pw') || '',
@@ -194,7 +198,7 @@ function digitsOnly(phone) {
 }
 
 function firstPhone(c) {
-  return c.Phone_Cell || c.Phone_Work || c.Phone_Home || c.Phone_Other || '';
+  return c.MainMobile || c.MainLandline || c.Phone_Cell || c.Phone_Work || c.Phone_Home || c.Phone_Other || '';
 }
 
 function render() {
@@ -231,7 +235,7 @@ function filteredContacts() {
   const term = state.searchTerm.trim().toLowerCase();
   if (!term) return state.contacts;
   return state.contacts.filter(c => {
-    return [c.Name, c.Org, c.Tags, c.Email, c.Phone_Work, c.Phone_Home, c.Phone_Cell, c.Phone_Other]
+    return [c.Name, c.Org, c.Tags, c.Email, c.MainMobile, c.MainLandline, c.Phone_Work, c.Phone_Home, c.Phone_Cell, c.Phone_Other]
       .some(f => String(f ?? '').toLowerCase().includes(term));
   });
 }
@@ -307,16 +311,21 @@ function renderDetail() {
   const c = state.contacts.find(x => String(x.ContactID) === String(state.currentContactId));
   if (!c) return '<main><div class="empty-state">Contato não encontrado.</div></main>';
 
-  const phone = firstPhone(c);
-  const waLink = phone ? `https://wa.me/55${digitsOnly(phone)}` : null;
-  const telLink = phone ? `tel:${digitsOnly(phone)}` : null;
+  const mobile = c.MainMobile || '';
+  const landline = c.MainLandline || '';
+  const waLink = mobile ? `https://wa.me/${digitsOnly(mobile)}` : null;
+  const telMobileLink = mobile ? `tel:${digitsOnly(mobile)}` : null;
+  const telLandlineLink = landline ? `tel:${digitsOnly(landline)}` : null;
+  const needsReview = c.PhonesNeedReview || '';
 
   const fields = [
     ['Empresa', c.Org && c.Org !== c.Name ? c.Org : ''],
     ['Email', c.Email],
-    ['Telefone (trabalho)', c.Phone_Work],
-    ['Telefone (casa)', c.Phone_Home],
-    ['Celular', c.Phone_Cell],
+    ['Celular (principal)', mobile],
+    ['Fixo (principal)', landline],
+    ['Telefone (trabalho) - original', c.Phone_Work],
+    ['Telefone (casa) - original', c.Phone_Home],
+    ['Celular - original', c.Phone_Cell],
     ['Outro telefone', c.Phone_Other],
     ['Endereço', c.Address],
     ['CNPJ', c.CNPJ],
@@ -352,9 +361,12 @@ function renderDetail() {
         </div>
       </div>
 
+      ${needsReview ? `<div class="review-banner">⚠ Telefone(s) precisam de revisão manual: ${escapeHtml(needsReview)}</div>` : ''}
+
       <div class="contact-actions">
         ${waLink ? `<a class="action-pill whatsapp" href="${waLink}" target="_blank"><span class="ic">&#128172;</span>WhatsApp</a>` : ''}
-        ${telLink ? `<a class="action-pill call" href="${telLink}"><span class="ic">&#128222;</span>Ligar</a>` : ''}
+        ${telMobileLink ? `<a class="action-pill call" href="${telMobileLink}"><span class="ic">&#128222;</span>Ligar (cel)</a>` : ''}
+        ${telLandlineLink ? `<a class="action-pill call" href="${telLandlineLink}"><span class="ic">&#128222;</span>Ligar (fixo)</a>` : ''}
         ${c.Email ? `<a class="action-pill" href="mailto:${c.Email}"><span class="ic">&#9993;</span>Email</a>` : ''}
       </div>
 
@@ -409,9 +421,11 @@ function renderContactForm() {
       </div>
       ${field('Org', 'Empresa / Organização', c.Org)}
       ${field('Email', 'Email', c.Email, 'email')}
-      ${field('Phone_Cell', 'Celular', c.Phone_Cell)}
-      ${field('Phone_Work', 'Telefone (trabalho)', c.Phone_Work)}
-      ${field('Phone_Home', 'Telefone (casa)', c.Phone_Home)}
+      ${field('MainMobile', 'Celular principal (usado p/ WhatsApp e ligar) — formato: +55 (21) 99999-9999', c.MainMobile)}
+      ${field('MainLandline', 'Fixo principal — formato: +55 (21) 2999-9999', c.MainLandline)}
+      ${field('Phone_Cell', 'Celular (original, referência)', c.Phone_Cell)}
+      ${field('Phone_Work', 'Telefone trabalho (original, referência)', c.Phone_Work)}
+      ${field('Phone_Home', 'Telefone casa (original, referência)', c.Phone_Home)}
       ${field('Phone_Other', 'Outro telefone', c.Phone_Other)}
       ${field('Address', 'Endereço', c.Address)}
       ${field('CNPJ', 'CNPJ', c.CNPJ)}
@@ -542,6 +556,8 @@ function attachHandlers() {
         Type: $('f_Type').value,
         Org: $('f_Org').value.trim(),
         Email: $('f_Email').value.trim(),
+        MainMobile: $('f_MainMobile').value.trim(),
+        MainLandline: $('f_MainLandline').value.trim(),
         Phone_Cell: $('f_Phone_Cell').value.trim(),
         Phone_Work: $('f_Phone_Work').value.trim(),
         Phone_Home: $('f_Phone_Home').value.trim(),
