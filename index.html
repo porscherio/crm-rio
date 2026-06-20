@@ -94,6 +94,27 @@
     background: #2a1f0a; border: 1px solid var(--gold); color: var(--gold);
     font-size: 12px; padding: 8px 12px; border-radius: var(--radius); margin-bottom: 14px;
   }
+  .contact-card.select-mode { padding-left: 10px; }
+  .select-checkbox { width: 20px; height: 20px; accent-color: var(--gold); flex-shrink: 0; }
+  .merge-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--gold); border-radius: var(--radius);
+    padding: 10px 14px; margin-bottom: 14px; font-size: 13px;
+  }
+  .merge-bar-hint { color: var(--text-dim); }
+  .merge-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .merge-card {
+    background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 12px; cursor: pointer;
+  }
+  .merge-card.winner { border-color: var(--gold); }
+  .merge-card h3 { font-size: 14px; margin: 0 0 8px; }
+  .merge-card .pick-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .merge-card.winner .pick-label { color: var(--gold); font-weight: 700; }
+  .merge-field-row { font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); word-break: break-word; }
+  .merge-field-row:last-child { border-bottom: none; }
+  .merge-field-label { color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+  .merge-result-box { background: var(--surface); border: 1px solid var(--gold); border-radius: var(--radius); padding: 4px 14px; margin-bottom: 16px; }
 
   /* Detail view */
   .detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -145,9 +166,9 @@
   .spinner { display: flex; justify-content: center; padding: 40px 0; color: var(--text-dim); font-size: 13px; }
   .version-badge {
     position: fixed; top: 10px; right: 12px; z-index: 20;
-    color: var(--text-dim); font-size: 11px; opacity: 0.55;
-    background: var(--surface-2); border: 1px solid var(--border);
-    padding: 2px 8px; border-radius: 20px; pointer-events: none;
+    color: #ffffff; font-size: 12px; font-weight: 600; opacity: 1;
+    background: var(--surface-2); border: 1px solid var(--gold);
+    padding: 3px 10px; border-radius: 20px; pointer-events: none;
   }
 </style>
 </head>
@@ -157,16 +178,20 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw3HibfqCC-3CKKvKjVawXFhvntazKibD4eZKqQdSt4XLO-_N-aWZbwrvB9mEQwyMZExw/exec';
-const APP_VERSION = 'v1.3';
+const APP_VERSION = 'v1.4.1';
 
 let state = {
   password: localStorage.getItem('crm_pw') || '',
   contacts: [],
   contactsLoaded: false,
-  view: 'login', // login | list | detail | contactForm | noteForm
+  view: 'login', // login | list | detail | contactForm | noteForm | mergePreview
   currentContactId: null,
   searchTerm: '',
   editingNote: null,
+  selectMode: false,
+  selectedIds: [],
+  mergePreviewData: null,
+  mergeWinnerId: null,
 };
 
 function showToast(msg) {
@@ -208,6 +233,7 @@ function render() {
   else if (state.view === 'detail') app.innerHTML = renderDetail();
   else if (state.view === 'contactForm') app.innerHTML = renderContactForm();
   else if (state.view === 'noteForm') app.innerHTML = renderNoteForm();
+  else if (state.view === 'mergePreview') app.innerHTML = renderMergePreview();
   attachHandlers();
 }
 
@@ -242,7 +268,8 @@ function filteredContacts() {
 
 function buildContactRows(shown) {
   return shown.map(c => `
-    <div class="contact-card" data-id="${c.ContactID}">
+    <div class="contact-card ${state.selectMode ? 'select-mode' : ''}" data-id="${c.ContactID}">
+      ${state.selectMode ? `<input type="checkbox" class="select-checkbox" data-id="${c.ContactID}" ${state.selectedIds.includes(String(c.ContactID)) ? 'checked' : ''}>` : ''}
       <div class="contact-avatar">${initials(c.Name)}</div>
       <div class="contact-info">
         <div class="contact-name">${escapeHtml(c.Name || '(sem nome)')}</div>
@@ -270,14 +297,57 @@ function buildResultsHtml() {
 }
 
 function attachContactCardHandlers() {
-  document.querySelectorAll('.contact-card').forEach(card => {
-    card.onclick = () => {
-      state.currentContactId = card.dataset.id;
-      state.view = 'detail';
-      render();
-      loadContactDetail(card.dataset.id);
-    };
-  });
+  if (state.selectMode) {
+    document.querySelectorAll('.contact-card').forEach(card => {
+      card.onclick = (e) => {
+        if (e.target.classList.contains('select-checkbox')) return;
+        toggleSelected_(card.dataset.id);
+      };
+    });
+    document.querySelectorAll('.select-checkbox').forEach(box => {
+      box.onclick = (e) => { e.stopPropagation(); toggleSelected_(box.dataset.id); };
+    });
+  } else {
+    document.querySelectorAll('.contact-card').forEach(card => {
+      card.onclick = () => {
+        state.currentContactId = card.dataset.id;
+        state.view = 'detail';
+        render();
+        loadContactDetail(card.dataset.id);
+      };
+    });
+  }
+}
+
+function toggleSelected_(id) {
+  id = String(id);
+  const idx = state.selectedIds.indexOf(id);
+  if (idx === -1) {
+    if (state.selectedIds.length >= 2) {
+      showToast('Selecione no máximo 2 contatos para mesclar');
+      return;
+    }
+    state.selectedIds.push(id);
+  } else {
+    state.selectedIds.splice(idx, 1);
+  }
+  renderListResultsOnly();
+  updateMergeBar_();
+}
+
+function updateMergeBar_() {
+  const bar = document.getElementById('mergeBar');
+  if (!bar) return;
+  bar.innerHTML = buildMergeBarHtml_();
+  const goBtn = document.getElementById('mergeGoBtn');
+  if (goBtn) goBtn.onclick = startMergePreview;
+}
+
+function buildMergeBarHtml_() {
+  const count = state.selectedIds.length;
+  if (count === 0) return '<span class="merge-bar-hint">Toque nos contatos para selecionar 2 para mesclar</span>';
+  if (count === 1) return '<span class="merge-bar-hint">1 selecionado — escolha mais 1</span>';
+  return `<span class="merge-bar-hint">2 selecionados</span><button class="btn" id="mergeGoBtn" style="padding:8px 16px;">Mesclar contatos</button>`;
 }
 
 function renderListResultsOnly() {
@@ -293,13 +363,15 @@ function renderList() {
     <header>
       <div class="crest"></div>
       <h1>Contatos</h1>
+      <button class="icon-btn" id="selectModeBtn" title="Mesclar contatos">${state.selectMode ? '&#10005;' : '&#9776;'}</button>
       <button class="icon-btn" id="logoutBtn" title="Sair">&#9211;</button>
     </header>
     <main>
       <div class="search-bar">
         <input type="text" id="searchInput" placeholder="Buscar por nome, empresa, telefone..." value="${escapeHtml(state.searchTerm)}">
-        <button class="add-btn" id="addContactBtn">+</button>
+        ${state.selectMode ? '' : '<button class="add-btn" id="addContactBtn">+</button>'}
       </div>
+      ${state.selectMode ? `<div class="merge-bar" id="mergeBar">${buildMergeBarHtml_()}</div>` : ''}
       <div id="resultsContainer">${buildResultsHtml()}</div>
     </main>
   `;
@@ -469,6 +541,77 @@ function renderNoteForm() {
   `;
 }
 
+// ---------- Merge ----------
+
+async function startMergePreview() {
+  const [idA, idB] = state.selectedIds;
+  state.mergeWinnerId = idA; // default winner: first selected; user can switch
+  try {
+    showToast('Calculando mesclagem...');
+    const data = await api('previewMerge', { winnerId: idA, loserId: idB });
+    state.mergePreviewData = data;
+    state.view = 'mergePreview';
+    render();
+  } catch (err) {
+    showToast('Erro: ' + err.message);
+  }
+}
+
+function mergeFieldList_(contact) {
+  const skip = ['notes', 'ContactID'];
+  return Object.keys(contact).filter(k => !skip.includes(k) && contact[k]);
+}
+
+function renderMergeCard_(contact, isWinner, otherId) {
+  const fields = mergeFieldList_(contact);
+  return `
+    <div class="merge-card ${isWinner ? 'winner' : ''}" data-pick-id="${contact.ContactID}">
+      <div class="pick-label">${isWinner ? '★ VENCEDOR (será mantido)' : 'Toque para tornar vencedor'}</div>
+      <h3>${escapeHtml(contact.Name)}</h3>
+      ${fields.map(f => `<div class="merge-field-row"><div class="merge-field-label">${f}</div>${escapeHtml(String(contact[f]))}</div>`).join('')}
+      <div class="merge-field-row"><div class="merge-field-label">Notas</div>${(contact.notes || []).length} nota(s)</div>
+    </div>
+  `;
+}
+
+function renderMergePreview() {
+  const data = state.mergePreviewData;
+  if (!data) return '<main><div class="empty-state">Carregando...</div></main>';
+
+  const winnerId = String(state.mergeWinnerId);
+  const a = String(data.winner.ContactID) === winnerId ? data.winner : data.loser;
+  const b = String(data.winner.ContactID) === winnerId ? data.loser : data.winner;
+
+  // Recompute the "merged" preview client-side if the user swapped winner,
+  // by just relabeling — the actual merge logic always runs server-side at execute time.
+  const mergedFields = mergeFieldList_(data.merged);
+
+  return `
+    <header>
+      <button class="icon-btn" id="backBtn">&#8592;</button>
+      <h1>Mesclar contatos</h1>
+    </header>
+    <main>
+      <div class="section-title">Escolha o vencedor</div>
+      <div class="merge-compare">
+        ${renderMergeCard_(a, true, b.ContactID)}
+        ${renderMergeCard_(b, false, a.ContactID)}
+      </div>
+
+      <div class="section-title">Resultado da mesclagem</div>
+      <div class="merge-result-box">
+        ${mergedFields.map(f => `<div class="field-row"><div class="field-label">${f}</div><div class="field-value">${escapeHtml(String(data.merged[f]))}</div></div>`).join('')}
+        <div class="field-row"><div class="field-label">Notas</div><div class="field-value">${(a.notes || []).length + (b.notes || []).length} nota(s) no total</div></div>
+      </div>
+
+      <div class="bottom-actions">
+        <button class="btn btn-secondary" id="cancelMergeBtn" style="flex:1;">Cancelar</button>
+        <button class="btn" id="confirmMergeBtn" style="flex:1;">Confirmar mesclagem</button>
+      </div>
+    </main>
+  `;
+}
+
 // ---------- Handlers ----------
 
 function attachHandlers() {
@@ -499,15 +642,22 @@ function attachHandlers() {
       state.view = 'login';
       render();
     };
+    $('selectModeBtn').onclick = () => {
+      state.selectMode = !state.selectMode;
+      if (!state.selectMode) state.selectedIds = [];
+      render();
+    };
     $('searchInput').oninput = (e) => {
       state.searchTerm = e.target.value;
       renderListResultsOnly();
     };
-    $('addContactBtn').onclick = () => {
-      state.currentContactId = null;
-      state.view = 'contactForm';
-      render();
-    };
+    if ($('addContactBtn')) {
+      $('addContactBtn').onclick = () => {
+        state.currentContactId = null;
+        state.view = 'contactForm';
+        render();
+      };
+    }
     attachContactCardHandlers();
   }
 
@@ -602,6 +752,57 @@ function attachHandlers() {
         state.view = 'detail';
         render();
         showToast('Nota salva');
+      } catch (err) { showToast('Erro: ' + err.message); }
+    };
+  }
+
+  if (state.view === 'mergePreview') {
+    $('backBtn').onclick = $('cancelMergeBtn').onclick = () => {
+      state.view = 'list';
+      state.mergePreviewData = null;
+      render();
+    };
+    document.querySelectorAll('.merge-card').forEach(card => {
+      card.onclick = async () => {
+        const newWinnerId = card.dataset.pickId;
+        if (String(newWinnerId) === String(state.mergeWinnerId)) return;
+        const newLoserId = state.selectedIds.find(id => String(id) !== String(newWinnerId));
+        state.mergeWinnerId = newWinnerId;
+        try {
+          showToast('Recalculando...');
+          const data = await api('previewMerge', { winnerId: newWinnerId, loserId: newLoserId });
+          state.mergePreviewData = data;
+          render();
+        } catch (err) { showToast('Erro: ' + err.message); }
+      };
+    });
+    $('confirmMergeBtn').onclick = async () => {
+      const loserId = state.selectedIds.find(id => String(id) !== String(state.mergeWinnerId));
+      const loserContact = state.contacts.find(c => String(c.ContactID) === String(loserId));
+      if (!confirm(`Mesclar "${loserContact ? loserContact.Name : loserId}" no contato vencedor? Esta ação não pode ser desfeita.`)) return;
+      try {
+        showToast('Mesclando...');
+        const result = await api('executeMerge', { winnerId: state.mergeWinnerId, loserId: loserId });
+        // Refresh local contacts list: update winner, remove loser from view (not yet deleted server-side).
+        const winnerIdx = state.contacts.findIndex(c => String(c.ContactID) === String(state.mergeWinnerId));
+        if (winnerIdx !== -1) state.contacts[winnerIdx] = { ...state.contacts[winnerIdx], ...result.mergedContact };
+        state.contacts = state.contacts.filter(c => String(c.ContactID) !== String(loserId));
+
+        state.selectMode = false;
+        state.selectedIds = [];
+        state.mergePreviewData = null;
+        state.currentContactId = state.mergeWinnerId;
+        state.view = 'detail';
+        render();
+        loadContactDetail(state.mergeWinnerId);
+
+        const wantsDelete = confirm(`Mesclagem concluída. As notas de "${loserContact ? loserContact.Name : loserId}" foram movidas para o contato vencedor. Deseja excluir o contato duplicado "${loserContact ? loserContact.Name : loserId}" agora?`);
+        if (wantsDelete) {
+          await api('deleteContact', { contactId: loserId });
+          showToast('Contato duplicado excluído');
+        } else {
+          showToast('Mesclagem concluída. Contato duplicado mantido (vazio).');
+        }
       } catch (err) { showToast('Erro: ' + err.message); }
     };
   }
